@@ -189,7 +189,8 @@ export async function POST(request: NextRequest) {
     // Gemini APIの初期化チェック
     let model;
     try {
-      model = getGeminiModel();
+      // 明示的にgemini-proを使用（安定版）
+      model = getGeminiModel("gemini-pro");
     } catch (error) {
       return NextResponse.json(
         {

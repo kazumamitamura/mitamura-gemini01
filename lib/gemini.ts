@@ -20,7 +20,7 @@ export function initializeGemini() {
 /**
  * Geminiモデルのインスタンスを取得
  */
-export function getGeminiModel(modelName: string = "gemini-1.5-pro") {
+export function getGeminiModel(modelName: string = "gemini-pro") {
   const genAI = initializeGemini();
   return genAI.getGenerativeModel({ model: modelName });
 }
