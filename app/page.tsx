@@ -26,6 +26,50 @@ const GENDER_OPTIONS = ["男性", "女性", "その他"];
 
 const FLEXIBILITY_OPTIONS = ["A", "B", "C"];
 
+// 食事データの選択肢
+const MEAL_STAPLE_OPTIONS = [
+  "小盛り（少なめ）",
+  "普通",
+  "大盛り（多め）",
+  "おかわりする",
+];
+
+const MEAL_MAIN_TYPE_OPTIONS = [
+  "肉中心",
+  "魚中心",
+  "揚げ物が多い",
+  "蒸し・煮物中心",
+  "バランス型",
+];
+
+const MEAL_MAIN_PORTION_OPTIONS = [
+  "手のひらサイズ（小）",
+  "手のひらサイズ（中）",
+  "手のひらサイズ（大）",
+  "手のひらより大きい",
+];
+
+const MEAL_VEGETABLE_OPTIONS = [
+  "毎食食べる",
+  "1日2回",
+  "1日1回",
+  "ほとんど食べない",
+];
+
+const MEAL_SOUP_OPTIONS = [
+  "毎食食べる",
+  "1日1-2回",
+  "時々",
+  "ほとんど飲まない",
+];
+
+const MEAL_SUPPLEMENT_OPTIONS = [
+  "プロテインを毎日飲む",
+  "プロテインを時々飲む",
+  "補食（おにぎり等）を活用",
+  "特に取っていない",
+];
+
 interface FormData {
   // 基本情報
   name: string;
@@ -37,6 +81,14 @@ interface FormData {
   mbti: string;
   height: string;
   weight: string;
+  // 生活習慣（新規追加）
+  sleepTime: string;
+  mealStaple: string;
+  mealMainType: string;
+  mealMainPortion: string;
+  mealVegetable: string;
+  mealSoup: string;
+  mealSupplement: string;
   // ベスト記録 (kg)
   PP: string;
   Snatch: string;
@@ -85,6 +137,13 @@ export default function Home() {
     mbti: "",
     height: "",
     weight: "",
+    sleepTime: "",
+    mealStaple: "",
+    mealMainType: "",
+    mealMainPortion: "",
+    mealVegetable: "",
+    mealSoup: "",
+    mealSupplement: "",
     PP: "",
     Snatch: "",
     HS: "",
@@ -164,6 +223,14 @@ export default function Home() {
         mbti: formData.mbti || undefined,
         height: parseOptionalNumber(formData.height),
         weight: parseOptionalNumber(formData.weight),
+        // 生活習慣
+        sleepTime: parseOptionalNumber(formData.sleepTime),
+        mealStaple: formData.mealStaple || undefined,
+        mealMainType: formData.mealMainType || undefined,
+        mealMainPortion: formData.mealMainPortion || undefined,
+        mealVegetable: formData.mealVegetable || undefined,
+        mealSoup: formData.mealSoup || undefined,
+        mealSupplement: formData.mealSupplement || undefined,
         // ベスト記録
         PP: parseOptionalNumber(formData.PP),
         Snatch: parseOptionalNumber(formData.Snatch),
@@ -240,10 +307,10 @@ export default function Home() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-12">
-        <form onSubmit={handleSubmit} className="space-y-12">
-          {/* 基本情報 */}
-          <section className="border-b border-[#333333] pb-8">
-            <h2 className="text-2xl font-semibold mb-6 pb-2 border-b border-[#333333]">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* 基本情報エリア（青色テーマ） */}
+          <section className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-lg shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-blue-900">
               基本情報
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -413,9 +480,9 @@ export default function Home() {
             </div>
           </section>
 
-          {/* ベスト記録 */}
-          <section className="border-b border-[#333333] pb-8">
-            <h2 className="text-2xl font-semibold mb-6 pb-2 border-b border-[#333333]">
+          {/* ベスト記録エリア（紫色テーマ） */}
+          <section className="bg-purple-50 border-l-4 border-purple-500 p-6 rounded-lg shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-purple-900">
               ベスト記録 (kg)
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
@@ -938,11 +1005,11 @@ export default function Home() {
           </section>
 
           {/* 送信ボタン */}
-          <div className="pt-4 border-t border-[#333333]">
+          <div className="pt-4">
             <button
               type="submit"
               disabled={isLoading}
-              className="px-8 py-3 bg-[#333333] text-white font-medium hover:bg-[#555555] disabled:bg-[#999999] disabled:cursor-not-allowed transition-colors"
+              className="w-full px-8 py-4 bg-gradient-to-r from-blue-600 via-purple-600 to-orange-600 text-white font-bold text-lg rounded-lg shadow-lg hover:from-blue-700 hover:via-purple-700 hover:to-orange-700 disabled:from-gray-400 disabled:via-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all transform hover:scale-105 disabled:hover:scale-100"
             >
               {isLoading ? "分析中..." : "Analyze Performance"}
             </button>

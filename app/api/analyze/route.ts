@@ -12,6 +12,14 @@ interface AnalyzeRequest {
   mbti?: string;
   height?: number;
   weight?: number;
+  // 生活習慣（新規追加）
+  sleepTime?: number;
+  mealStaple?: string;
+  mealMainType?: string;
+  mealMainPortion?: string;
+  mealVegetable?: string;
+  mealSoup?: string;
+  mealSupplement?: string;
   // ベスト記録
   PP?: number;
   Snatch?: number;
@@ -248,6 +256,15 @@ ${body.mbti ? `- MBTI: ${body.mbti}` : ""}
 ${body.height ? `- 身長: ${body.height} cm` : ""}
 ${body.weight ? `- 体重: ${body.weight} kg` : ""}
 
+## 生活習慣
+${body.sleepTime !== undefined ? `- 睡眠時間: ${body.sleepTime} 時間` : ""}
+${body.mealStaple ? `- 主食の量: ${body.mealStaple}` : ""}
+${body.mealMainType ? `- 主菜の傾向: ${body.mealMainType}` : ""}
+${body.mealMainPortion ? `- 主菜のサイズ: ${body.mealMainPortion}` : ""}
+${body.mealVegetable ? `- 副菜の頻度: ${body.mealVegetable}` : ""}
+${body.mealSoup ? `- 汁物: ${body.mealSoup}` : ""}
+${body.mealSupplement ? `- 補食・プロテイン活用: ${body.mealSupplement}` : ""}
+
 ## ベスト記録 (kg)
 ${body.PP !== undefined ? `- PP: ${body.PP} kg` : ""}
 ${body.Snatch !== undefined ? `- Snatch: ${body.Snatch} kg` : ""}
@@ -317,7 +334,32 @@ ${painAnalysis}
 - 痛みを避けながらできる代替トレーニング
 - 痛みの原因となる可能性のある技術的エラー
 
-### 5. 総合的なアドバイス
+### 5. 食事・栄養指導（重要）
+以下の食事データを分析し、アスリート向けの栄養指導を行ってください:
+
+#### エネルギー不足判定
+- 主食の量（${body.mealStaple || "未入力"}）から、ガス欠リスクを評価してください
+- 小盛りや食べない場合は、トレーニング中のエネルギー不足（ガス欠）のリスクを警告し、具体的な改善策（補食のタイミング、量など）を提案してください
+
+#### タンパク質指導
+- 主菜の傾向（${body.mealMainType || "未入力"}）と補食・プロテイン活用（${body.mealSupplement || "未入力"}）から、筋肉合成に必要なタンパク質の摂取状況を評価してください
+- 体重に応じた1日のタンパク質必要量を提示し、現在の摂取状況で足りているか、不足しているかを判定してください
+- 不足している場合は、具体的な改善策（主菜の増量、プロテインの活用、補食の追加など）を提案してください
+
+#### コンディション改善（副菜不足）
+- 副菜の頻度（${body.mealVegetable || "未入力"}）から、野菜不足によるコンディションへの影響を評価してください
+- ほとんど食べない、または1日1回以下の場合は、以下のリスクを説明し、改善提案をしてください:
+  - ビタミン・ミネラル不足による回復の遅れ
+  - 抗酸化物質不足による炎症リスク
+  - 食物繊維不足による腸内環境への影響
+- 具体的な改善策（1食あたりの副菜の量、手軽に摂取できる方法など）を提案してください
+
+#### 睡眠指導
+- 睡眠時間（${body.sleepTime !== undefined ? `${body.sleepTime}時間` : "未入力"}）に応じたリカバリーアドバイスを行ってください
+- 7時間未満の場合は、リカバリー不足のリスクを説明し、睡眠の質を高める方法（就寝時間の固定、睡眠環境の改善など）を提案してください
+- 理想的な睡眠時間（7-9時間）を維持している場合は、睡眠の質をさらに高める方法を提案してください
+
+### 6. 総合的なアドバイス
 上記の全ての情報を統合し、以下の観点から包括的なアドバイスを提供してください:
 - 現状の強みと弱点
 - 優先順位の高い改善ポイント
@@ -332,6 +374,7 @@ Markdown形式で、以下のセクションを含めてください:
 - ## 柔軟性分析と改善提案
 - ## 弱点特定と補強種目の推奨
 - ## 痛み管理と安全なトレーニング
+- ## 食事・栄養指導（エネルギー、タンパク質、コンディション、睡眠）
 - ## 技術的分析
 - ## 具体的な改善提案
 - ## トレーニング推奨事項
