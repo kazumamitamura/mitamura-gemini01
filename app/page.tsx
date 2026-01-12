@@ -17,7 +17,8 @@ export default function Home() {
     mbti: "",
     height: "",
     weight: "",
-    // ★追加：生活習慣
+    
+    // ★生活習慣・食事（新機能）
     sleepTime: "",
     mealStaple: "普通盛り（拳1つ分）",
     mealMainType: "肉中心",
@@ -25,7 +26,8 @@ export default function Home() {
     mealVegetable: "1日1回は食べる",
     mealSoup: "時々飲む",
     mealSupplement: "特に摂取しない",
-    // 記録
+
+    // ★ベスト記録（全項目復活）
     PP: "",
     Snatch: "",
     HS: "",
@@ -41,12 +43,17 @@ export default function Home() {
     BenchPress: "",
     SnatchStand: "",
     CJStand: "",
-    // 体力テスト
+
+    // ★体力テスト（全項目復活）
     standingLongJump: "",
     run50M: "",
     gripRight: "",
     gripLeft: "",
     sitAndReach: "",
+    ankleDorsiflexion: "", // 足首
+    shoulderThoracic: "",  // 肩・胸郭
+    hamstring: "",         // ハム
+
     // コンディション
     injuryPainLocation: "",
     painLevel: "0",
@@ -68,18 +75,37 @@ export default function Home() {
     setResult("");
 
     try {
+      // 数値型への変換処理
       const requestBody = {
         ...formData,
         height: formData.height ? Number(formData.height) : undefined,
         weight: formData.weight ? Number(formData.weight) : undefined,
         sleepTime: formData.sleepTime ? Number(formData.sleepTime) : undefined,
         painLevel: Number(formData.painLevel),
-        // 数値変換（主要種目のみ例示）
+        
+        // 記録データの数値変換
+        PP: formData.PP ? Number(formData.PP) : undefined,
         Snatch: formData.Snatch ? Number(formData.Snatch) : undefined,
+        HS: formData.HS ? Number(formData.HS) : undefined,
+        PSn: formData.PSn ? Number(formData.PSn) : undefined,
         CJ: formData.CJ ? Number(formData.CJ) : undefined,
+        HJ: formData.HJ ? Number(formData.HJ) : undefined,
         BSq: formData.BSq ? Number(formData.BSq) : undefined,
+        FSq: formData.FSq ? Number(formData.FSq) : undefined,
         DL_S: formData.DL_S ? Number(formData.DL_S) : undefined,
+        DL_J: formData.DL_J ? Number(formData.DL_J) : undefined,
+        RJ: formData.RJ ? Number(formData.RJ) : undefined,
+        BS: formData.BS ? Number(formData.BS) : undefined,
         BenchPress: formData.BenchPress ? Number(formData.BenchPress) : undefined,
+        SnatchStand: formData.SnatchStand ? Number(formData.SnatchStand) : undefined,
+        CJStand: formData.CJStand ? Number(formData.CJStand) : undefined,
+        
+        // 体力テストの数値変換
+        standingLongJump: formData.standingLongJump ? Number(formData.standingLongJump) : undefined,
+        run50M: formData.run50M ? Number(formData.run50M) : undefined,
+        gripRight: formData.gripRight ? Number(formData.gripRight) : undefined,
+        gripLeft: formData.gripLeft ? Number(formData.gripLeft) : undefined,
+        sitAndReach: formData.sitAndReach ? Number(formData.sitAndReach) : undefined,
       };
 
       const response = await fetch("/api/analyze", {
@@ -166,7 +192,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 2. 生活習慣・栄養 (Orange) ★ここが今回の目玉機能 */}
+              {/* 2. 生活習慣・栄養 (Orange) */}
               <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 shadow-sm">
                 <h3 className="text-xl font-bold text-orange-800 mb-6 flex items-center">
                   <span className="text-2xl mr-2">🍱</span> 食事・睡眠・コンディション
@@ -250,21 +276,28 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 3. ベスト記録 (Purple) */}
+              {/* 3. ベスト記録 (Purple) - 全項目復活 */}
               <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100 shadow-sm">
                 <h3 className="text-xl font-bold text-purple-800 mb-6 flex items-center">
                   <span className="text-2xl mr-2">🏋️</span> ベスト記録 (kg)
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
+                    { label: "PP", name: "PP" },
                     { label: "スナッチ", name: "Snatch" },
-                    { label: "C&J", name: "CJ" },
-                    { label: "BSq", name: "BSq" },
-                    { label: "デッドリフト", name: "DL_S" },
-                    { label: "ベンチプレス", name: "BenchPress" },
                     { label: "ハイクリーン", name: "HS" },
                     { label: "パワースナッチ", name: "PSn" },
+                    { label: "C&J", name: "CJ" },
+                    { label: "ハイジャーク", name: "HJ" },
+                    { label: "バックスクワット", name: "BSq" },
                     { label: "フロントスクワット", name: "FSq" },
+                    { label: "デッドリフト(S)", name: "DL_S" },
+                    { label: "デッドリフト(J)", name: "DL_J" },
+                    { label: "リバウンドジャンプ", name: "RJ" },
+                    { label: "バックスクワット", name: "BS" },
+                    { label: "ベンチプレス", name: "BenchPress" },
+                    { label: "スナッチ(台)", name: "SnatchStand" },
+                    { label: "C&J(台)", name: "CJStand" },
                   ].map((item) => (
                     <div key={item.name}>
                       <label className="block text-xs font-semibold text-gray-600 mb-1">{item.label}</label>
@@ -274,9 +307,11 @@ export default function Home() {
                 </div>
               </div>
               
-              {/* 体力テストなど (省略せず全項目表示用) */}
+              {/* 4. 体力テスト・その他 (Gray) - 全項目復活 */}
               <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 shadow-sm">
-                 <h3 className="text-xl font-bold text-gray-700 mb-6">🏃 体力テスト・その他</h3>
+                 <h3 className="text-xl font-bold text-gray-700 mb-6 flex items-center">
+                   <span className="text-2xl mr-2">🏃</span> 体力テスト・柔軟性
+                 </h3>
                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                        <label className="block text-xs font-semibold text-gray-600 mb-1">立ち幅跳び(cm)</label>
@@ -293,6 +328,38 @@ export default function Home() {
                      <div>
                        <label className="block text-xs font-semibold text-gray-600 mb-1">握力(左)</label>
                        <input type="number" name="gripLeft" className="input-field" value={formData.gripLeft} onChange={handleChange} />
+                    </div>
+                     <div>
+                       <label className="block text-xs font-semibold text-gray-600 mb-1">長座体前屈(cm)</label>
+                       <input type="number" name="sitAndReach" className="input-field" value={formData.sitAndReach} onChange={handleChange} />
+                    </div>
+                    {/* 柔軟性チェック (ABC評価) */}
+                    <div>
+                       <label className="block text-xs font-semibold text-gray-600 mb-1">足首の背屈</label>
+                       <select name="ankleDorsiflexion" className="select-field text-sm py-1" value={formData.ankleDorsiflexion} onChange={handleChange}>
+                          <option value="">-</option>
+                          <option value="A">A</option>
+                          <option value="B">B</option>
+                          <option value="C">C</option>
+                       </select>
+                    </div>
+                    <div>
+                       <label className="block text-xs font-semibold text-gray-600 mb-1">肩・胸郭の可動域</label>
+                       <select name="shoulderThoracic" className="select-field text-sm py-1" value={formData.shoulderThoracic} onChange={handleChange}>
+                          <option value="">-</option>
+                          <option value="A">A</option>
+                          <option value="B">B</option>
+                          <option value="C">C</option>
+                       </select>
+                    </div>
+                    <div>
+                       <label className="block text-xs font-semibold text-gray-600 mb-1">ハムストリングス</label>
+                       <select name="hamstring" className="select-field text-sm py-1" value={formData.hamstring} onChange={handleChange}>
+                          <option value="">-</option>
+                          <option value="A">A</option>
+                          <option value="B">B</option>
+                          <option value="C">C</option>
+                       </select>
                     </div>
                  </div>
               </div>
