@@ -2,21 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getGeminiModel } from "@/lib/gemini";
 import nodemailer from "nodemailer";
 import { marked } from "marked";
-import { GoogleSpreadsheet } from "google-spreadsheet"; // ★スプレッドシート用
-import { JWT } from "google-auth-library"; // ★認証用
+import { GoogleSpreadsheet } from "google-spreadsheet";
+import { JWT } from "google-auth-library";
 
 interface AnalyzeRequest {
-  // 基本情報
   name: string;
   email: string;
-  // 身体データ
   gradeAge?: string;
   gender?: string;
   experience?: string;
   mbti?: string;
   height?: number;
   weight?: number;
-  // 生活習慣
   sleepTime?: number;
   mealStaple?: string;
   mealMainType?: string;
@@ -24,7 +21,6 @@ interface AnalyzeRequest {
   mealVegetable?: string;
   mealSoup?: string;
   mealSupplement?: string;
-  // ベスト記録
   PP?: number;
   Snatch?: number;
   HS?: number;
@@ -40,7 +36,6 @@ interface AnalyzeRequest {
   BenchPress?: number;
   SnatchStand?: number;
   CJStand?: number;
-  // 体力テスト
   standingLongJump?: number;
   run50M?: number;
   gripRight?: number;
@@ -49,23 +44,19 @@ interface AnalyzeRequest {
   ankleDorsiflexion?: string;
   shoulderThoracic?: string;
   hamstring?: string;
-  // コンディション
   injuryPainLocation?: string;
   painLevel: number;
-  // 相談内容
   consultation?: string;
 }
 
 // スプレッドシートに書き込む関数
 async function saveToSpreadsheet(data: AnalyzeRequest, advice: string) {
   try {
-    // 環境変数のチェック
     if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !process.env.GOOGLE_SPREADSHEET_ID) {
-      console.warn("Spreadsheet credentials are missing.");
+      console.warn("Spreadsheet credentials are missing. Skipping save.");
       return;
     }
 
-    // 認証設定 (改行コードの修正)
     const serviceAccountAuth = new JWT({
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
       key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
@@ -73,16 +64,11 @@ async function saveToSpreadsheet(data: AnalyzeRequest, advice: string) {
     });
 
     const doc = new GoogleSpreadsheet(process.env.GOOGLE_SPREADSHEET_ID, serviceAccountAuth);
-    await doc.loadInfo(); // シート情報を読み込み
+    await doc.loadInfo();
+    const sheet = doc.sheetsByIndex[0];
 
-    const sheet = doc.sheetsByIndex[0]; // 1枚目のシートを使う
-
-    // 現在の日時（日本時間）
     const now = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
 
-    // 書き込むデータ（行）を作成
-    // ※スプレッドシートの1行目の見出しと合わせると見やすいですが、
-    // ここでは主要なデータを列挙して追加します。
     await sheet.addRow({
       "日時": now,
       "氏名": data.name,
@@ -94,13 +80,11 @@ async function saveToSpreadsheet(data: AnalyzeRequest, advice: string) {
       "痛みLv": data.painLevel,
       "痛み箇所": data.injuryPainLocation || "",
       "MBTI": data.mbti || "",
-      "AIアドバイス": advice.slice(0, 500) + "..." // 長すぎるので最初の500文字だけ保存
+      "AIアドバイス": advice.slice(0, 500) + "..."
     });
-
     console.log("Saved to Spreadsheet successfully");
   } catch (error) {
     console.error("Failed to save to Spreadsheet:", error);
-    // スプレッドシートのエラーでアプリを止めないようにcatchする
   }
 }
 
@@ -148,8 +132,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "氏名とメールアドレスは必須です。" }, { status: 400 });
     }
 
-    if (body.painLevel === undefined || isNaN(body.painLevel) || body.painLevel < 0 || body.painLevel > 10) {
-      return NextResponse.json({ error: "痛みレベルは0-10の範囲で入力してください。" }, { status: 400 });
+    // ★重要: メール設定の確認
+    if (!process.env.SENDER_EMAIL || !process.env.SENDER_PASSWORD) {
+      console.error("Email credentials are missing in Vercel Environment Variables.");
+      // ユーザーにはエラーを返すが、分析自体は止めないようにする配慮も可能だが、
+      // ここでは設定ミスに気づくためにエラーを返す
+      return NextResponse.json({ error: "システム設定エラー: メール送信情報が不足しています。" }, { status: 500 });
     }
 
     const transporter = nodemailer.createTransport({
@@ -162,7 +150,8 @@ export async function POST(request: NextRequest) {
 
     let model;
     try {
-      model = getGeminiModel("gemini-2.5-flash");
+      // ★安定版の1.5-flashを指定
+      model = getGeminiModel("gemini-1.5-flash");
     } catch (error) {
       return NextResponse.json({ error: "Gemini APIの初期化に失敗しました。" }, { status: 500 });
     }
@@ -188,7 +177,7 @@ export async function POST(request: NextRequest) {
     const prompt = `
 あなたは「三田村Gemini先生」として、スポーツ科学の専門家であり、熱血コーチです。
 以下のウェイトリフティング選手のデータを詳細に分析し、Markdown形式で包括的なアドバイスを提供してください。
-
+(以下略...)
 ## 選手基本情報
 - 氏名: ${body.name}
 ${body.gradeAge ? `- 学年・年齢: ${body.gradeAge}` : ""}
@@ -292,7 +281,7 @@ Markdown形式で出力してください。
       </div>
     `;
 
-    // ★並行処理：メール送信とスプレッドシート保存を同時に行う
+    // 並行処理
     await Promise.all([
       transporter.sendMail({
         from: `"三田村Gemini先生" <${process.env.SENDER_EMAIL}>`,
