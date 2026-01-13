@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGeminiModel } from "@/lib/gemini";
 import nodemailer from "nodemailer";
+import { marked } from "marked"; // ★文章をきれいにするプロ
 
 interface AnalyzeRequest {
   // 基本情報
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     let model;
     try {
-      model = getGeminiModel("gemini-2.5-flash");
+      model = getGeminiModel("gemini-2.0-flash");
     } catch (error) {
       return NextResponse.json({ error: "Gemini APIの初期化に失敗しました。" }, { status: 500 });
     }
@@ -209,24 +210,38 @@ Markdown形式で出力してください。
     const response = await result.response;
     const analysisText = response.text();
 
+    // ★ markedを使ってMarkdownをきれいなHTMLに変換
+    const parsedHtml = await marked.parse(analysisText);
+
+    // ★ メール用にさらにデザイン（色付けなど）を適用
+    const styledHtml = parsedHtml
+      .replace(/<h1>/g, '<h1 style="color: #4f46e5; font-size: 24px; border-bottom: 2px solid #e0e7ff; padding-bottom: 10px;">')
+      .replace(/<h2>/g, '<h2 style="color: #c2410c; font-size: 20px; margin-top: 25px; border-left: 4px solid #fdba74; padding-left: 10px;">') // オレンジ色の見出し
+      .replace(/<h3>/g, '<h3 style="color: #4338ca; font-size: 18px; margin-top: 20px;">') // 紫色の小見出し
+      .replace(/<p>/g, '<p style="margin-bottom: 15px; color: #374151; line-height: 1.8;">')
+      .replace(/<ul>/g, '<ul style="padding-left: 20px; color: #374151;">')
+      .replace(/<li>/g, '<li style="margin-bottom: 8px;">')
+      .replace(/<strong>/g, '<strong style="color: #be185d;">'); // 太文字をピンク色に
+
     const htmlContent = `
-      <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-        <h1 style="color: #4f46e5;">🏋️ 三田村Gemini先生からの分析レポート</h1>
-        <p>${body.name} 選手、お疲れ様です！今回の分析結果をお届けします。</p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-        <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
-          ${analysisText
-            .replace(/\n/g, "<br>")
-            .replace(/## (.*)/g, '<h2 style="color: #c2410c; margin-top: 20px;">$1</h2>')
-            .replace(/### (.*)/g, '<h3 style="color: #4338ca; margin-top: 15px;">$1</h3>')
-            .replace(/\*\*(.*)\*\*/g, '<strong>$1</strong>')
-            .replace(/- (.*)/g, '• $1')
-          }
+      <div style="font-family: 'Helvetica Neue', Arial, sans-serif; color: #333; line-height: 1.6; max-width: 800px; margin: 0 auto;">
+        <div style="text-align: center; padding: 20px 0;">
+          <h1 style="color: #4f46e5; margin: 0;">🏋️ 三田村Gemini先生</h1>
+          <p style="color: #6b7280; font-size: 14px;">Weightlifting Performance Analysis</p>
         </div>
-        <p style="margin-top: 30px; font-size: 12px; color: #666;">
-          ※このメールは自動送信されています。<br>
-          Weightlifting Performance Analysis System
-        </p>
+        
+        <div style="background-color: #ffffff; padding: 30px; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+          <p style="font-size: 16px; font-weight: bold; color: #111827;">${body.name} 選手、お疲れ様です！</p>
+          <p>今回の分析結果をお届けします。日々のトレーニングの参考にしてください。</p>
+          <hr style="border: 0; border-top: 1px solid #f3f4f6; margin: 20px 0;">
+          
+          ${styledHtml}
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #9ca3af;">
+          <p>※このメールは自動送信されています。</p>
+          <p>© 2026 Weightlifting Analysis System</p>
+        </div>
       </div>
     `;
 
