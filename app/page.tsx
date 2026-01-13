@@ -18,7 +18,7 @@ export default function Home() {
     height: "",
     weight: "",
     
-    // ★生活習慣・食事（新機能）
+    // 生活習慣・食事
     sleepTime: "",
     mealStaple: "普通盛り（拳1つ分）",
     mealMainType: "肉中心",
@@ -27,7 +27,7 @@ export default function Home() {
     mealSoup: "時々飲む",
     mealSupplement: "特に摂取しない",
 
-    // ★ベスト記録（全項目復活）
+    // ベスト記録
     PP: "",
     Snatch: "",
     HS: "",
@@ -44,15 +44,15 @@ export default function Home() {
     SnatchStand: "",
     CJStand: "",
 
-    // ★体力テスト（全項目復活）
+    // 体力テスト
     standingLongJump: "",
     run50M: "",
     gripRight: "",
     gripLeft: "",
     sitAndReach: "",
-    ankleDorsiflexion: "", // 足首
-    shoulderThoracic: "",  // 肩・胸郭
-    hamstring: "",         // ハム
+    ankleDorsiflexion: "",
+    shoulderThoracic: "",
+    hamstring: "",
 
     // コンディション
     injuryPainLocation: "",
@@ -75,7 +75,6 @@ export default function Home() {
     setResult("");
 
     try {
-      // 数値型への変換処理
       const requestBody = {
         ...formData,
         height: formData.height ? Number(formData.height) : undefined,
@@ -83,7 +82,7 @@ export default function Home() {
         sleepTime: formData.sleepTime ? Number(formData.sleepTime) : undefined,
         painLevel: Number(formData.painLevel),
         
-        // 記録データの数値変換
+        // 数値変換
         PP: formData.PP ? Number(formData.PP) : undefined,
         Snatch: formData.Snatch ? Number(formData.Snatch) : undefined,
         HS: formData.HS ? Number(formData.HS) : undefined,
@@ -100,7 +99,6 @@ export default function Home() {
         SnatchStand: formData.SnatchStand ? Number(formData.SnatchStand) : undefined,
         CJStand: formData.CJStand ? Number(formData.CJStand) : undefined,
         
-        // 体力テストの数値変換
         standingLongJump: formData.standingLongJump ? Number(formData.standingLongJump) : undefined,
         run50M: formData.run50M ? Number(formData.run50M) : undefined,
         gripRight: formData.gripRight ? Number(formData.gripRight) : undefined,
@@ -198,8 +196,6 @@ export default function Home() {
                   <span className="text-2xl mr-2">🍱</span> 食事・睡眠・コンディション
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
-                  {/* 睡眠 */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-semibold text-gray-700 mb-1">昨晩の睡眠時間 (時間)</label>
                     <div className="flex items-center">
@@ -207,8 +203,6 @@ export default function Home() {
                        <span className="text-gray-600">時間</span>
                     </div>
                   </div>
-
-                  {/* 食事選択エリア */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">🍚 主食 (ご飯の量)</label>
                     <select name="mealStaple" className="select-field" value={formData.mealStaple} onChange={handleChange}>
@@ -219,7 +213,6 @@ export default function Home() {
                       <option value="特盛り（拳2つ分以上）">特盛り（拳2つ分以上）</option>
                     </select>
                   </div>
-
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">🍖 主菜 (おかずの傾向)</label>
                     <select name="mealMainType" className="select-field" value={formData.mealMainType} onChange={handleChange}>
@@ -230,7 +223,6 @@ export default function Home() {
                       <option value="バランスよく食べている">バランスよく食べている</option>
                     </select>
                   </div>
-
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">🥩 主菜のサイズ</label>
                     <select name="mealMainPortion" className="select-field" value={formData.mealMainPortion} onChange={handleChange}>
@@ -239,7 +231,6 @@ export default function Home() {
                       <option value="手のひらより大きい">手のひらより大きい</option>
                     </select>
                   </div>
-
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">🥗 副菜 (野菜・海藻)</label>
                     <select name="mealVegetable" className="select-field" value={formData.mealVegetable} onChange={handleChange}>
@@ -249,7 +240,6 @@ export default function Home() {
                       <option value="ジュース等で済ます">ジュース等で済ます</option>
                     </select>
                   </div>
-
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">🥛 補食・プロテイン</label>
                     <select name="mealSupplement" className="select-field" value={formData.mealSupplement} onChange={handleChange}>
@@ -259,7 +249,6 @@ export default function Home() {
                       <option value="両方とっている">両方とっている</option>
                     </select>
                   </div>
-                  
                   <div className="md:col-span-2 mt-4 border-t border-orange-200 pt-4">
                      <label className="block text-sm font-semibold text-gray-700 mb-2">痛みレベル (0〜10)</label>
                      <div className="flex items-center gap-4">
@@ -267,25 +256,24 @@ export default function Home() {
                         <span className="text-xl font-bold text-red-600 w-12 text-center">{formData.painLevel}</span>
                      </div>
                   </div>
-                  
                   <div className="md:col-span-2">
                     <label className="block text-sm font-semibold text-gray-700 mb-1">痛み・怪我の場所 / 相談内容</label>
                     <textarea name="injuryPainLocation" placeholder="例：右肩が痛い、減量について相談したい" rows={3} className="input-field" value={formData.injuryPainLocation} onChange={handleChange} />
                   </div>
-
                 </div>
               </div>
 
-              {/* 3. ベスト記録 (Purple) - 全項目復活 */}
+              {/* 3. ベスト記録 (Purple) */}
               <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100 shadow-sm">
                 <h3 className="text-xl font-bold text-purple-800 mb-6 flex items-center">
                   <span className="text-2xl mr-2">🏋️</span> ベスト記録 (kg)
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* ★ここを修正しました */}
                   {[
                     { label: "PP", name: "PP" },
                     { label: "スナッチ", name: "Snatch" },
-                    { label: "ハイクリーン", name: "HS" },
+                    { label: "HS（入スナッチ）", name: "HS" },
                     { label: "パワースナッチ", name: "PSn" },
                     { label: "C&J", name: "CJ" },
                     { label: "ハイジャーク", name: "HJ" },
@@ -293,8 +281,8 @@ export default function Home() {
                     { label: "フロントスクワット", name: "FSq" },
                     { label: "デッドリフト(S)", name: "DL_S" },
                     { label: "デッドリフト(J)", name: "DL_J" },
-                    { label: "リバウンドジャンプ", name: "RJ" },
-                    { label: "バックスクワット", name: "BS" },
+                    { label: "RJ（ラックジャーク）", name: "RJ" },
+                    { label: "BS（バランススナッチ）", name: "BS" },
                     { label: "ベンチプレス", name: "BenchPress" },
                     { label: "スナッチ(台)", name: "SnatchStand" },
                     { label: "C&J(台)", name: "CJStand" },
@@ -307,7 +295,7 @@ export default function Home() {
                 </div>
               </div>
               
-              {/* 4. 体力テスト・その他 (Gray) - 全項目復活 */}
+              {/* 4. 体力テスト・その他 (Gray) */}
               <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 shadow-sm">
                  <h3 className="text-xl font-bold text-gray-700 mb-6 flex items-center">
                    <span className="text-2xl mr-2">🏃</span> 体力テスト・柔軟性
@@ -333,7 +321,6 @@ export default function Home() {
                        <label className="block text-xs font-semibold text-gray-600 mb-1">長座体前屈(cm)</label>
                        <input type="number" name="sitAndReach" className="input-field" value={formData.sitAndReach} onChange={handleChange} />
                     </div>
-                    {/* 柔軟性チェック (ABC評価) */}
                     <div>
                        <label className="block text-xs font-semibold text-gray-600 mb-1">足首の背屈</label>
                        <select name="ankleDorsiflexion" className="select-field text-sm py-1" value={formData.ankleDorsiflexion} onChange={handleChange}>
