@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGeminiModel } from "@/lib/gemini";
 import nodemailer from "nodemailer";
-import { marked } from "marked"; // ★文章をきれいにするプロ
+import { marked } from "marked";
+import { GoogleSpreadsheet } from "google-spreadsheet"; // ★スプレッドシート用
+import { JWT } from "google-auth-library"; // ★認証用
 
 interface AnalyzeRequest {
   // 基本情報
@@ -52,6 +54,54 @@ interface AnalyzeRequest {
   painLevel: number;
   // 相談内容
   consultation?: string;
+}
+
+// スプレッドシートに書き込む関数
+async function saveToSpreadsheet(data: AnalyzeRequest, advice: string) {
+  try {
+    // 環境変数のチェック
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !process.env.GOOGLE_SPREADSHEET_ID) {
+      console.warn("Spreadsheet credentials are missing.");
+      return;
+    }
+
+    // 認証設定 (改行コードの修正)
+    const serviceAccountAuth = new JWT({
+      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const doc = new GoogleSpreadsheet(process.env.GOOGLE_SPREADSHEET_ID, serviceAccountAuth);
+    await doc.loadInfo(); // シート情報を読み込み
+
+    const sheet = doc.sheetsByIndex[0]; // 1枚目のシートを使う
+
+    // 現在の日時（日本時間）
+    const now = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
+
+    // 書き込むデータ（行）を作成
+    // ※スプレッドシートの1行目の見出しと合わせると見やすいですが、
+    // ここでは主要なデータを列挙して追加します。
+    await sheet.addRow({
+      "日時": now,
+      "氏名": data.name,
+      "Email": data.email,
+      "スナッチ": data.Snatch || "",
+      "C&J": data.CJ || "",
+      "BSq": data.BSq || "",
+      "睡眠時間": data.sleepTime || "",
+      "痛みLv": data.painLevel,
+      "痛み箇所": data.injuryPainLocation || "",
+      "MBTI": data.mbti || "",
+      "AIアドバイス": advice.slice(0, 500) + "..." // 長すぎるので最初の500文字だけ保存
+    });
+
+    console.log("Saved to Spreadsheet successfully");
+  } catch (error) {
+    console.error("Failed to save to Spreadsheet:", error);
+    // スプレッドシートのエラーでアプリを止めないようにcatchする
+  }
 }
 
 function getMBTIGuidance(mbti?: string): string {
@@ -112,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     let model;
     try {
-      model = getGeminiModel("gemini-2.5-flash");
+      model = getGeminiModel("gemini-2.0-flash");
     } catch (error) {
       return NextResponse.json({ error: "Gemini APIの初期化に失敗しました。" }, { status: 500 });
     }
@@ -210,18 +260,15 @@ Markdown形式で出力してください。
     const response = await result.response;
     const analysisText = response.text();
 
-    // ★ markedを使ってMarkdownをきれいなHTMLに変換
     const parsedHtml = await marked.parse(analysisText);
-
-    // ★ メール用にさらにデザイン（色付けなど）を適用
     const styledHtml = parsedHtml
       .replace(/<h1>/g, '<h1 style="color: #4f46e5; font-size: 24px; border-bottom: 2px solid #e0e7ff; padding-bottom: 10px;">')
-      .replace(/<h2>/g, '<h2 style="color: #c2410c; font-size: 20px; margin-top: 25px; border-left: 4px solid #fdba74; padding-left: 10px;">') // オレンジ色の見出し
-      .replace(/<h3>/g, '<h3 style="color: #4338ca; font-size: 18px; margin-top: 20px;">') // 紫色の小見出し
+      .replace(/<h2>/g, '<h2 style="color: #c2410c; font-size: 20px; margin-top: 25px; border-left: 4px solid #fdba74; padding-left: 10px;">')
+      .replace(/<h3>/g, '<h3 style="color: #4338ca; font-size: 18px; margin-top: 20px;">')
       .replace(/<p>/g, '<p style="margin-bottom: 15px; color: #374151; line-height: 1.8;">')
       .replace(/<ul>/g, '<ul style="padding-left: 20px; color: #374151;">')
       .replace(/<li>/g, '<li style="margin-bottom: 8px;">')
-      .replace(/<strong>/g, '<strong style="color: #be185d;">'); // 太文字をピンク色に
+      .replace(/<strong>/g, '<strong style="color: #be185d;">');
 
     const htmlContent = `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; color: #333; line-height: 1.6; max-width: 800px; margin: 0 auto;">
@@ -245,17 +292,17 @@ Markdown形式で出力してください。
       </div>
     `;
 
-    try {
-      await transporter.sendMail({
+    // ★並行処理：メール送信とスプレッドシート保存を同時に行う
+    await Promise.all([
+      transporter.sendMail({
         from: `"三田村Gemini先生" <${process.env.SENDER_EMAIL}>`,
         to: body.email,
         subject: `【分析結果】三田村Gemini先生からのフィードバック (${body.name}様)`,
         html: htmlContent,
-      });
-      console.log("Email sent successfully via Gmail");
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError);
-    }
+      }).then(() => console.log("Email sent successfully")),
+
+      saveToSpreadsheet(body, analysisText)
+    ]);
 
     return NextResponse.json({ success: true, analysis: analysisText });
   } catch (error) {
