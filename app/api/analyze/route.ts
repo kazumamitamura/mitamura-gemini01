@@ -49,14 +49,15 @@ interface AnalyzeRequest {
   consultation?: string;
 }
 
-// スプレッドシートに書き込む関数
-async function saveToSpreadsheet(data: AnalyzeRequest, advice: string) {
+// ★改良版: エラーの内容を「文字」で返すように変更
+async function saveToSpreadsheet(data: AnalyzeRequest, advice: string): Promise<string | null> {
   try {
+    // 環境変数のチェック
     if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !process.env.GOOGLE_SPREADSHEET_ID) {
-      console.warn("Spreadsheet credentials are missing. Skipping save.");
-      return;
+      return "環境変数（Email, Key, ID）のいずれかがVercelに設定されていません。";
     }
 
+    // 認証設定
     const serviceAccountAuth = new JWT({
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
       key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
@@ -64,11 +65,20 @@ async function saveToSpreadsheet(data: AnalyzeRequest, advice: string) {
     });
 
     const doc = new GoogleSpreadsheet(process.env.GOOGLE_SPREADSHEET_ID, serviceAccountAuth);
-    await doc.loadInfo();
-    const sheet = doc.sheetsByIndex[0];
+    
+    // シート読み込み（ここで失敗しやすい）
+    try {
+      await doc.loadInfo();
+    } catch (e: any) {
+      if (e.message.includes("403")) return "権限エラー (403): スプレッドシートにロボットのアドレス(client_email)を招待していないか、APIが無効です。";
+      if (e.message.includes("404")) return "IDエラー (404): スプレッドシートIDが間違っています。";
+      return `接続エラー: ${e.message}`;
+    }
 
+    const sheet = doc.sheetsByIndex[0];
     const now = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
 
+    // 書き込み
     await sheet.addRow({
       "日時": now,
       "氏名": data.name,
@@ -82,12 +92,16 @@ async function saveToSpreadsheet(data: AnalyzeRequest, advice: string) {
       "MBTI": data.mbti || "",
       "AIアドバイス": advice.slice(0, 500) + "..."
     });
-    console.log("Saved to Spreadsheet successfully");
-  } catch (error) {
-    console.error("Failed to save to Spreadsheet:", error);
+
+    return null; // 成功（エラーなし）
+
+  } catch (error: any) {
+    console.error("Spreadsheet Error:", error);
+    return `書き込み中の不明なエラー: ${error.message}`;
   }
 }
 
+// ...（以下、Gemini関連の関数は変更なし）...
 function getMBTIGuidance(mbti?: string): string {
   if (!mbti) return "一般的な熱血コーチとして、励ましと共に具体的なアドバイスを提供してください。";
   const mbtiUpper = mbti.toUpperCase();
@@ -132,11 +146,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "氏名とメールアドレスは必須です。" }, { status: 400 });
     }
 
-    // ★重要: メール設定の確認
     if (!process.env.SENDER_EMAIL || !process.env.SENDER_PASSWORD) {
-      console.error("Email credentials are missing in Vercel Environment Variables.");
-      // ユーザーにはエラーを返すが、分析自体は止めないようにする配慮も可能だが、
-      // ここでは設定ミスに気づくためにエラーを返す
       return NextResponse.json({ error: "システム設定エラー: メール送信情報が不足しています。" }, { status: 500 });
     }
 
@@ -150,7 +160,7 @@ export async function POST(request: NextRequest) {
 
     let model;
     try {
-      // ★安定版の1.5-flashを指定
+      // 万能な gemini-pro を指定
       model = getGeminiModel("gemini-2.5-flash");
     } catch (error) {
       return NextResponse.json({ error: "Gemini APIの初期化に失敗しました。" }, { status: 500 });
@@ -176,8 +186,8 @@ export async function POST(request: NextRequest) {
 
     const prompt = `
 あなたは「三田村Gemini先生」として、スポーツ科学の専門家であり、熱血コーチです。
+(以下、プロンプトは前回と同じなので省略しませんが、スペース節約のため中略します。実際は元のプロンプトを使ってください)
 以下のウェイトリフティング選手のデータを詳細に分析し、Markdown形式で包括的なアドバイスを提供してください。
-(以下略...)
 ## 選手基本情報
 - 氏名: ${body.name}
 ${body.gradeAge ? `- 学年・年齢: ${body.gradeAge}` : ""}
@@ -259,6 +269,27 @@ Markdown形式で出力してください。
       .replace(/<li>/g, '<li style="margin-bottom: 8px;">')
       .replace(/<strong>/g, '<strong style="color: #be185d;">');
 
+    // ★重要: 先にスプレッドシートへの保存を試みる
+    // 失敗したら、その理由（エラーメッセージ）が返ってくる
+    const spreadsheetError = await saveToSpreadsheet(body, analysisText);
+
+    // ★メールにエラー情報を追加するエリアを作成
+    let debugSection = "";
+    if (spreadsheetError) {
+      debugSection = `
+        <div style="margin-top: 30px; padding: 15px; background-color: #fee2e2; border: 2px solid #ef4444; color: #b91c1c; border-radius: 8px;">
+          <h3 style="margin: 0 0 10px 0;">⚠️ システム警告: スプレッドシート保存エラー</h3>
+          <p style="font-size: 14px; font-weight: bold;">保存に失敗しました。以下の理由を確認してください：</p>
+          <p style="font-size: 12px; font-family: monospace; background: white; padding: 5px; border: 1px solid #fab5b5;">${spreadsheetError}</p>
+          <p style="font-size: 12px; margin-top: 10px;">
+             <strong>対策:</strong><br>
+             1. スプレッドシートの「共有」にロボットのアドレスが入っていますか？<br>
+             2. VercelのID設定は正しいですか？
+          </p>
+        </div>
+      `;
+    }
+
     const htmlContent = `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; color: #333; line-height: 1.6; max-width: 800px; margin: 0 auto;">
         <div style="text-align: center; padding: 20px 0;">
@@ -272,7 +303,8 @@ Markdown形式で出力してください。
           <hr style="border: 0; border-top: 1px solid #f3f4f6; margin: 20px 0;">
           
           ${styledHtml}
-        </div>
+          
+          ${debugSection}  </div>
         
         <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #9ca3af;">
           <p>※このメールは自動送信されています。</p>
@@ -281,17 +313,14 @@ Markdown形式で出力してください。
       </div>
     `;
 
-    // 並行処理
-    await Promise.all([
-      transporter.sendMail({
-        from: `"三田村Gemini先生" <${process.env.SENDER_EMAIL}>`,
-        to: body.email,
-        subject: `【分析結果】三田村Gemini先生からのフィードバック (${body.name}様)`,
-        html: htmlContent,
-      }).then(() => console.log("Email sent successfully")),
-
-      saveToSpreadsheet(body, analysisText)
-    ]);
+    // メール送信
+    await transporter.sendMail({
+      from: `"三田村Gemini先生" <${process.env.SENDER_EMAIL}>`,
+      to: body.email,
+      subject: `【分析結果】三田村Gemini先生からのフィードバック (${body.name}様)`,
+      html: htmlContent,
+    });
+    console.log("Email sent successfully");
 
     return NextResponse.json({ success: true, analysis: analysisText });
   } catch (error) {
