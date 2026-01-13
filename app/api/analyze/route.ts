@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
     let model;
     try {
       // ★安定版の1.5-flashを指定
-      model = getGeminiModel("gemini-1.5-flash");
+      model = getGeminiModel("gemini-2.5-flash");
     } catch (error) {
       return NextResponse.json({ error: "Gemini APIの初期化に失敗しました。" }, { status: 500 });
     }
