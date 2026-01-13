@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     let model;
     try {
-      model = getGeminiModel("gemini-2.0-flash");
+      model = getGeminiModel("gemini-2.5-flash");
     } catch (error) {
       return NextResponse.json({ error: "Gemini APIの初期化に失敗しました。" }, { status: 500 });
     }
