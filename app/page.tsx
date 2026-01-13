@@ -1,427 +1,237 @@
 "use client";
 
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import ReactMarkdown from "react-markdown";
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<string>("");
+  const [result, setResult] = useState("");
 
-  const [formData, setFormData] = useState({
-    // 基本情報
-    name: "",
-    email: "",
-    gradeAge: "",
-    gender: "",
-    experience: "",
-    mbti: "",
-    height: "",
-    weight: "",
-    
-    // 生活習慣・食事
-    sleepTime: "",
-    mealStaple: "普通盛り（拳1つ分）",
-    mealMainType: "肉中心",
-    mealMainPortion: "手のひらサイズ",
-    mealVegetable: "1日1回は食べる",
-    mealSoup: "時々飲む",
-    mealSupplement: "特に摂取しない",
-
-    // ベスト記録
-    PP: "",
-    Snatch: "",
-    HS: "",
-    PSn: "",
-    CJ: "",
-    HJ: "",
-    BSq: "",
-    FSq: "",
-    DL_S: "",
-    DL_J: "",
-    RJ: "",
-    BS: "",
-    BenchPress: "",
-    SnatchStand: "",
-    CJStand: "",
-
-    // 体力テスト
-    standingLongJump: "",
-    run50M: "",
-    gripRight: "",
-    gripLeft: "",
-    sitAndReach: "",
-    ankleDorsiflexion: "",
-    shoulderThoracic: "",
-    hamstring: "",
-
-    // コンディション
-    injuryPainLocation: "",
-    painLevel: "0",
-    consultation: "",
-  });
-
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setLoading(true);
     setResult("");
 
-    try {
-      const requestBody = {
-        ...formData,
-        height: formData.height ? Number(formData.height) : undefined,
-        weight: formData.weight ? Number(formData.weight) : undefined,
-        sleepTime: formData.sleepTime ? Number(formData.sleepTime) : undefined,
-        painLevel: Number(formData.painLevel),
-        
-        // 数値変換
-        PP: formData.PP ? Number(formData.PP) : undefined,
-        Snatch: formData.Snatch ? Number(formData.Snatch) : undefined,
-        HS: formData.HS ? Number(formData.HS) : undefined,
-        PSn: formData.PSn ? Number(formData.PSn) : undefined,
-        CJ: formData.CJ ? Number(formData.CJ) : undefined,
-        HJ: formData.HJ ? Number(formData.HJ) : undefined,
-        BSq: formData.BSq ? Number(formData.BSq) : undefined,
-        FSq: formData.FSq ? Number(formData.FSq) : undefined,
-        DL_S: formData.DL_S ? Number(formData.DL_S) : undefined,
-        DL_J: formData.DL_J ? Number(formData.DL_J) : undefined,
-        RJ: formData.RJ ? Number(formData.RJ) : undefined,
-        BS: formData.BS ? Number(formData.BS) : undefined,
-        BenchPress: formData.BenchPress ? Number(formData.BenchPress) : undefined,
-        SnatchStand: formData.SnatchStand ? Number(formData.SnatchStand) : undefined,
-        CJStand: formData.CJStand ? Number(formData.CJStand) : undefined,
-        
-        standingLongJump: formData.standingLongJump ? Number(formData.standingLongJump) : undefined,
-        run50M: formData.run50M ? Number(formData.run50M) : undefined,
-        gripRight: formData.gripRight ? Number(formData.gripRight) : undefined,
-        gripLeft: formData.gripLeft ? Number(formData.gripLeft) : undefined,
-        sitAndReach: formData.sitAndReach ? Number(formData.sitAndReach) : undefined,
-      };
+    const formData = new FormData(event.currentTarget);
+    const data = Object.fromEntries(formData.entries());
 
+    // 数値として扱う項目（これを変換しないとエラーになるため）
+    const numericFields = [
+      "height", "weight", "sleepTime", "painLevel",
+      "PP", "Snatch", "HS", "PSn", "CJ", "HJ", "BSq", "FSq",
+      "DL_S", "DL_J", "RJ", "BS", "BenchPress", "SnatchStand", "CJStand",
+      "standingLongJump", "run50M", "gripRight", "gripLeft", "sitAndReach"
+    ];
+
+    const payload: any = { ...data };
+    
+    // 数値変換処理
+    numericFields.forEach((field) => {
+      if (payload[field]) {
+        payload[field] = Number(payload[field]);
+      }
+    });
+
+    try {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setResult(data.analysis);
+      const json = await response.json();
+      if (json.success) {
+        // AIの分析結果（テキスト）をセット
+        setResult(json.analysis);
       } else {
-        alert("エラーが発生しました: " + data.error);
+        setResult("❌ エラー: " + json.error);
       }
     } catch (error) {
-      console.error(error);
-      alert("通信エラーが発生しました。");
+      setResult("❌ 通信エラーが発生しました。");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight sm:text-5xl drop-shadow-sm">
-            Weightlifting Analysis AI
-          </h1>
-          <p className="mt-4 text-lg text-gray-600">
-            三田村Gemini先生が、あなたの<span className="font-bold text-blue-600">「記録」</span>だけでなく
-            <span className="font-bold text-orange-500">「食事・睡眠」</span>までトータルサポートします。
+    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white">
+      {/* ヘッダー */}
+      <div className="bg-slate-800/80 backdrop-blur-md border-b border-slate-700 sticky top-0 z-50">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
+              🏋️ AI Weightlifting Coach
+            </h1>
+            <p className="text-slate-400 text-xs mt-1">
+              Powered by Gemini Pro
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <main className="max-w-4xl mx-auto px-4 py-10">
+        <div className="mb-8 text-center">
+          <p className="text-slate-300">
+            日々の記録とコンディションを入力してください。<br/>
+            <span className="text-indigo-400 font-bold">AI専属コーチ</span>が、あなたに最適なアドバイスを即座に提供します。
           </p>
         </div>
 
-        <div className="bg-white shadow-2xl rounded-3xl overflow-hidden border border-gray-100">
-          <div className="p-8 space-y-10">
-            <form onSubmit={handleSubmit} className="space-y-10">
-              
-              {/* 1. 基本情報 (Blue) */}
-              <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 shadow-sm">
-                <h3 className="text-xl font-bold text-blue-800 mb-6 flex items-center">
-                  <span className="text-2xl mr-2">👤</span> 基本情報
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">氏名 <span className="text-red-500">*</span></label>
-                    <input type="text" name="name" required className="input-field" value={formData.name} onChange={handleChange} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">メールアドレス <span className="text-red-500">*</span></label>
-                    <input type="email" name="email" required className="input-field" value={formData.email} onChange={handleChange} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">MBTIタイプ (例: ENFP)</label>
-                    <input type="text" name="mbti" className="input-field" value={formData.mbti} onChange={handleChange} />
-                  </div>
-                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">学年・年齢</label>
-                    <input type="text" name="gradeAge" className="input-field" value={formData.gradeAge} onChange={handleChange} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">性別</label>
-                    <select name="gender" className="select-field" value={formData.gender} onChange={handleChange}>
-                      <option value="">選択してください</option>
-                      <option value="男性">男性</option>
-                      <option value="女性">女性</option>
-                      <option value="その他">その他</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">競技歴</label>
-                    <input type="text" name="experience" className="input-field" value={formData.experience} onChange={handleChange} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">身長 (cm)</label>
-                    <input type="number" name="height" className="input-field" value={formData.height} onChange={handleChange} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">体重 (kg)</label>
-                    <input type="number" name="weight" className="input-field" value={formData.weight} onChange={handleChange} />
-                  </div>
-                </div>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          
+          {/* 1. 基本情報セクション */}
+          <section className="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+            <h2 className="text-xl font-bold text-indigo-400 mb-6 flex items-center">
+              👤 選手プロフィール
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">氏名 <span className="text-rose-500">*</span></label>
+                <input required name="name" type="text" placeholder="三田村 太郎" 
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition" />
               </div>
-
-              {/* 2. 生活習慣・栄養 (Orange) */}
-              <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 shadow-sm">
-                <h3 className="text-xl font-bold text-orange-800 mb-6 flex items-center">
-                  <span className="text-2xl mr-2">🍱</span> 食事・睡眠・コンディション
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">昨晩の睡眠時間 (時間)</label>
-                    <div className="flex items-center">
-                       <input type="number" step="0.5" name="sleepTime" placeholder="例: 7.5" className="input-field max-w-[150px] mr-2" value={formData.sleepTime} onChange={handleChange} />
-                       <span className="text-gray-600">時間</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">🍚 主食 (ご飯の量)</label>
-                    <select name="mealStaple" className="select-field" value={formData.mealStaple} onChange={handleChange}>
-                      <option value="食べない・かなり少ない">食べない・かなり少ない</option>
-                      <option value="小盛り（拳1つ分以下）">小盛り（拳1つ分以下）</option>
-                      <option value="普通盛り（拳1つ分）">普通盛り（拳1つ分）</option>
-                      <option value="大盛り（拳1.5つ分）">大盛り（拳1.5つ分）</option>
-                      <option value="特盛り（拳2つ分以上）">特盛り（拳2つ分以上）</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">🍖 主菜 (おかずの傾向)</label>
-                    <select name="mealMainType" className="select-field" value={formData.mealMainType} onChange={handleChange}>
-                      <option value="肉中心">肉中心</option>
-                      <option value="魚中心">魚中心</option>
-                      <option value="卵・大豆製品が多い">卵・大豆製品が多い</option>
-                      <option value="揚げ物・加工食品が多い">揚げ物・加工食品が多い</option>
-                      <option value="バランスよく食べている">バランスよく食べている</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">🥩 主菜のサイズ</label>
-                    <select name="mealMainPortion" className="select-field" value={formData.mealMainPortion} onChange={handleChange}>
-                      <option value="手のひらより小さい">手のひらより小さい</option>
-                      <option value="手のひらサイズ">手のひらサイズ</option>
-                      <option value="手のひらより大きい">手のひらより大きい</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">🥗 副菜 (野菜・海藻)</label>
-                    <select name="mealVegetable" className="select-field" value={formData.mealVegetable} onChange={handleChange}>
-                      <option value="毎食しっかり食べる">毎食しっかり食べる</option>
-                      <option value="1日1回は食べる">1日1回は食べる</option>
-                      <option value="ほとんど食べない">ほとんど食べない</option>
-                      <option value="ジュース等で済ます">ジュース等で済ます</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">🥛 補食・プロテイン</label>
-                    <select name="mealSupplement" className="select-field" value={formData.mealSupplement} onChange={handleChange}>
-                      <option value="特に摂取しない">特に摂取しない</option>
-                      <option value="練習後にプロテイン">練習後にプロテイン</option>
-                      <option value="練習後におにぎり等">練習後におにぎり等</option>
-                      <option value="両方とっている">両方とっている</option>
-                    </select>
-                  </div>
-                  <div className="md:col-span-2 mt-4 border-t border-orange-200 pt-4">
-                     <label className="block text-sm font-semibold text-gray-700 mb-2">痛みレベル (0〜10)</label>
-                     <div className="flex items-center gap-4">
-                        <input type="range" name="painLevel" min="0" max="10" className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-500" value={formData.painLevel} onChange={handleChange} />
-                        <span className="text-xl font-bold text-red-600 w-12 text-center">{formData.painLevel}</span>
-                     </div>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">痛み・怪我の場所 / 相談内容</label>
-                    <textarea name="injuryPainLocation" placeholder="例：右肩が痛い、減量について相談したい" rows={3} className="input-field" value={formData.injuryPainLocation} onChange={handleChange} />
-                  </div>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Email <span className="text-rose-500">*</span></label>
+                <input required name="email" type="email" placeholder="student@example.com" 
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition" />
               </div>
-
-              {/* 3. ベスト記録 (Purple) */}
-              <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100 shadow-sm">
-                <h3 className="text-xl font-bold text-purple-800 mb-6 flex items-center">
-                  <span className="text-2xl mr-2">🏋️</span> ベスト記録 (kg)
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {/* ★ここを修正しました */}
-                  {[
-                    { label: "PP", name: "PP" },
-                    { label: "スナッチ", name: "Snatch" },
-                    { label: "HS（入スナッチ）", name: "HS" },
-                    { label: "パワースナッチ", name: "PSn" },
-                    { label: "C&J", name: "CJ" },
-                    { label: "ハイジャーク", name: "HJ" },
-                    { label: "バックスクワット", name: "BSq" },
-                    { label: "フロントスクワット", name: "FSq" },
-                    { label: "デッドリフト(S)", name: "DL_S" },
-                    { label: "デッドリフト(J)", name: "DL_J" },
-                    { label: "RJ（ラックジャーク）", name: "RJ" },
-                    { label: "BS（バランススナッチ）", name: "BS" },
-                    { label: "ベンチプレス", name: "BenchPress" },
-                    { label: "スナッチ(台)", name: "SnatchStand" },
-                    { label: "C&J(台)", name: "CJStand" },
-                  ].map((item) => (
-                    <div key={item.name}>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">{item.label}</label>
-                      <input type="number" name={item.name} className="input-field text-center" placeholder="kg" value={formData[item.name as keyof typeof formData]} onChange={handleChange} />
-                    </div>
-                  ))}
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">MBTIタイプ</label>
+                <input name="mbti" type="text" placeholder="例: ENFP, ISTJ" 
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition" />
               </div>
-              
-              {/* 4. 体力テスト・その他 (Gray) */}
-              <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 shadow-sm">
-                 <h3 className="text-xl font-bold text-gray-700 mb-6 flex items-center">
-                   <span className="text-2xl mr-2">🏃</span> 体力テスト・柔軟性
-                 </h3>
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                       <label className="block text-xs font-semibold text-gray-600 mb-1">立ち幅跳び(cm)</label>
-                       <input type="number" name="standingLongJump" className="input-field" value={formData.standingLongJump} onChange={handleChange} />
-                    </div>
-                    <div>
-                       <label className="block text-xs font-semibold text-gray-600 mb-1">50M走(秒)</label>
-                       <input type="number" name="run50M" className="input-field" value={formData.run50M} onChange={handleChange} />
-                    </div>
-                     <div>
-                       <label className="block text-xs font-semibold text-gray-600 mb-1">握力(右)</label>
-                       <input type="number" name="gripRight" className="input-field" value={formData.gripRight} onChange={handleChange} />
-                    </div>
-                     <div>
-                       <label className="block text-xs font-semibold text-gray-600 mb-1">握力(左)</label>
-                       <input type="number" name="gripLeft" className="input-field" value={formData.gripLeft} onChange={handleChange} />
-                    </div>
-                     <div>
-                       <label className="block text-xs font-semibold text-gray-600 mb-1">長座体前屈(cm)</label>
-                       <input type="number" name="sitAndReach" className="input-field" value={formData.sitAndReach} onChange={handleChange} />
-                    </div>
-                    <div>
-                       <label className="block text-xs font-semibold text-gray-600 mb-1">足首の背屈</label>
-                       <select name="ankleDorsiflexion" className="select-field text-sm py-1" value={formData.ankleDorsiflexion} onChange={handleChange}>
-                          <option value="">-</option>
-                          <option value="A">A</option>
-                          <option value="B">B</option>
-                          <option value="C">C</option>
-                       </select>
-                    </div>
-                    <div>
-                       <label className="block text-xs font-semibold text-gray-600 mb-1">肩・胸郭の可動域</label>
-                       <select name="shoulderThoracic" className="select-field text-sm py-1" value={formData.shoulderThoracic} onChange={handleChange}>
-                          <option value="">-</option>
-                          <option value="A">A</option>
-                          <option value="B">B</option>
-                          <option value="C">C</option>
-                       </select>
-                    </div>
-                    <div>
-                       <label className="block text-xs font-semibold text-gray-600 mb-1">ハムストリングス</label>
-                       <select name="hamstring" className="select-field text-sm py-1" value={formData.hamstring} onChange={handleChange}>
-                          <option value="">-</option>
-                          <option value="A">A</option>
-                          <option value="B">B</option>
-                          <option value="C">C</option>
-                       </select>
-                    </div>
-                 </div>
-              </div>
-
-              {/* 送信ボタン */}
-              <div className="pt-6">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`
-                    w-full py-4 px-6 rounded-xl shadow-lg text-lg font-bold text-white tracking-wide
-                    transition-all duration-200 transform hover:-translate-y-1 hover:shadow-xl
-                    ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"}
-                  `}
-                >
-                  {loading ? "三田村先生が考え中... (分析しています)" : "詳しく分析してもらう"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        {/* 結果表示 */}
-        {result && (
-          <div className="mt-12 bg-white shadow-2xl rounded-3xl overflow-hidden border-t-8 border-indigo-600 animate-fade-in-up">
-            <div className="p-8 md:p-12 bg-gradient-to-b from-white to-indigo-50">
-              <h2 className="text-3xl font-extrabold text-indigo-900 mb-8 flex items-center border-b-2 border-indigo-100 pb-4">
-                <span className="text-4xl mr-3">📝</span> 分析レポート
-              </h2>
-              <div className="prose prose-lg max-w-none text-gray-800">
-                <ReactMarkdown
-                  components={{
-                    h2: ({ ...props }) => <h2 className="text-2xl font-bold text-indigo-800 mt-10 mb-4 flex items-center bg-indigo-100 p-3 rounded-lg" {...props} />,
-                    h3: ({ ...props }) => <h3 className="text-xl font-bold text-gray-800 mt-8 mb-3 border-l-4 border-orange-500 pl-3" {...props} />,
-                    strong: ({ ...props }) => <strong className="font-extrabold text-orange-700 bg-orange-50 px-1 rounded" {...props} />,
-                    ul: ({ ...props }) => <ul className="list-disc pl-6 space-y-2 my-4" {...props} />,
-                    li: ({ ...props }) => <li className="pl-1" {...props} />,
-                  }}
-                >
-                  {result}
-                </ReactMarkdown>
+               <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">学年・年齢</label>
+                <input name="gradeAge" type="text" placeholder="例: 大学2年生" 
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition" />
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          </section>
 
-      <style jsx global>{`
-        .input-field {
-          width: 100%;
-          padding: 0.75rem;
-          border-radius: 0.5rem;
-          border: 1px solid #d1d5db;
-          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-          outline: none;
-          transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .input-field:focus {
-          border-color: #6366f1;
-          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-        }
-        .select-field {
-          width: 100%;
-          padding: 0.75rem;
-          border-radius: 0.5rem;
-          border: 1px solid #d1d5db;
-          background-color: white;
-          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-          outline: none;
-        }
-        .select-field:focus {
-          border-color: #f97316;
-          box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
-        }
-      `}</style>
+          {/* 2. 生活・食事セクション */}
+          <section className="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
+            <h2 className="text-xl font-bold text-orange-400 mb-6 flex items-center">
+              🍱 食事 & コンディション
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                 <label className="block text-sm font-medium text-slate-300 mb-2">昨晩の睡眠時間</label>
+                 <div className="flex items-center">
+                   <input name="sleepTime" type="number" step="0.5" placeholder="7.5" 
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none transition" />
+                   <span className="ml-2 text-slate-400">時間</span>
+                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">主食の量</label>
+                <select name="mealStaple" className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none transition">
+                  <option value="普通盛り（拳1つ分）">普通盛り（拳1つ分）</option>
+                  <option value="大盛り（拳1.5つ分）">大盛り（拳1.5つ分）</option>
+                  <option value="特盛り（拳2つ分以上）">特盛り（拳2つ分以上）</option>
+                  <option value="小盛り（拳1つ分以下）">小盛り（拳1つ分以下）</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">痛みレベル (0-10)</label>
+                <input name="painLevel" type="number" min="0" max="10" defaultValue="0"
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none transition" />
+              </div>
+               <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">怪我・痛みの箇所</label>
+                <input name="injuryPainLocation" type="text" placeholder="特になし" 
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none transition" />
+              </div>
+            </div>
+          </section>
+
+          {/* 3. 記録入力セクション */}
+          <section className="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500"></div>
+            <h2 className="text-xl font-bold text-cyan-400 mb-6 flex items-center">
+              🏆 ベスト記録 (kg)
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* 主要種目 */}
+              {[
+                { label: "スナッチ", name: "Snatch" },
+                { label: "C&J", name: "CJ" },
+                { label: "BSq", name: "BSq" },
+                { label: "FSq", name: "FSq" }
+              ].map((item) => (
+                <div key={item.name}>
+                  <label className="block text-xs font-medium text-cyan-200 mb-1 uppercase">{item.label}</label>
+                  <input name={item.name} type="number" placeholder="kg" 
+                    className="w-full bg-slate-900 border border-cyan-900/50 rounded-lg p-2 text-white focus:ring-2 focus:ring-cyan-500 outline-none transition text-center font-mono text-lg" />
+                </div>
+              ))}
+              
+              {/* その他の種目 */}
+              {[
+                "PP", "HS", "PSn", "HJ", "DL_S", "DL_J", "RJ", "BS", "BenchPress", "SnatchStand", "CJStand"
+              ].map((item) => (
+                <div key={item}>
+                  <label className="block text-xs font-medium text-slate-500 mb-1 uppercase truncate">{item}</label>
+                  <input name={item} type="number" 
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-300 focus:border-cyan-500 outline-none transition text-center" />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* 相談 */}
+          <section className="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-1 h-full bg-pink-500"></div>
+             <h2 className="text-xl font-bold text-pink-400 mb-4">💬 コーチへの相談</h2>
+             <textarea name="consultation" rows={3} placeholder="技術的な悩みや、次の目標について..." 
+                className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-pink-500 outline-none transition"></textarea>
+          </section>
+
+          {/* 送信ボタン */}
+          <div className="sticky bottom-6 z-10">
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full py-4 rounded-xl font-bold text-lg shadow-2xl transition duration-300 transform hover:scale-[1.01] active:scale-[0.99]
+                ${loading 
+                  ? "bg-slate-600 cursor-not-allowed text-slate-400" 
+                  : "bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white"
+                }`}
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  AIコーチが分析中...
+                </span>
+              ) : (
+                "🚀 分析レポートを作成する"
+              )}
+            </button>
+          </div>
+
+          {/* 結果表示（Markdown対応） */}
+          {result && (
+            <div className={`mt-10 p-8 rounded-2xl shadow-2xl animate-fade-in ${result.includes("エラー") ? "bg-red-900/30 border border-red-500" : "bg-indigo-900/20 border border-indigo-500/50"}`}>
+              <h2 className="text-2xl font-bold text-white mb-6 border-b border-white/10 pb-4">
+                📊 分析レポート
+              </h2>
+              <div className="prose prose-invert prose-lg max-w-none text-slate-300">
+                 {/* ここでMarkdownを綺麗に表示 */}
+                 <ReactMarkdown>{result}</ReactMarkdown>
+              </div>
+            </div>
+          )}
+
+        </form>
+      </main>
+      
+      <footer className="text-center py-8 text-slate-600 text-xs">
+        © 2026 Weightlifting AI Lab.
+      </footer>
     </div>
   );
 }
