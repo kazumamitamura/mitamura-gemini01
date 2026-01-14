@@ -127,14 +127,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "氏名とメールアドレスは必須です。" }, { status: 400 });
     }
 
-    // ★ID作成：インストール不要の標準機能を使用
-    // (日付 + ランダムな文字列でユニークなIDを作ります)
+    // ID発行
     const analysisId = Date.now().toString(36) + Math.random().toString(36).substring(2);
 
     // Gemini分析
     let model;
     try {
-      // ★モデルを gemini-2.5-flash に固定
       model = getGeminiModel("gemini-2.5-flash");
     } catch (e) {
       return NextResponse.json({ error: "Gemini初期化エラー" }, { status: 500 });
@@ -142,21 +140,31 @@ export async function POST(request: NextRequest) {
 
     const painAnalysis = getPainAnalysis(body.painLevel, body.injuryPainLocation);
 
+    // ★ここを修正しました！項目を明確に分けてAIに伝えます
     const prompt = `
 あなたは三田村Gemini先生（ウェイトリフティング専門コーチ）です。
 以下の選手データに基づき、Markdown形式で熱血指導を行ってください。
 
-## 選手データ
-- 氏名: ${body.name} (${body.experience || "歴不明"})
-- 記録: S${body.Snatch || "-"} / CJ${body.CJ || "-"} / BSq${body.BSq || "-"}
-- 痛み: ${painAnalysis}
-- 相談: ${body.consultation || "なし"}
+## 選手プロフィール
+- 氏名: ${body.name}
+- 学年・年齢: ${body.gradeAge || "不明"}
+- 性別: ${body.gender || "不明"}
+- 競技歴: ${body.experience || "不明"}
+- 身長: ${body.height ? body.height + "cm" : "不明"}
+- 体重: ${body.weight ? body.weight + "kg" : "不明"}
+- MBTI: ${body.mbti || "不明"}
 
-## 指導ポイント
-1. 記録のバランス(S/CJ比率など)を分析せよ。
-2. 痛みがある場合はケアの方法を提案せよ。
-3. 食事・睡眠へのアドバイスを含めよ。
-4. Markdownで見やすく出力せよ。
+## コンディション・記録
+- 記録: Snatch ${body.Snatch || "-"}kg / C&J ${body.CJ || "-"}kg / BSq ${body.BSq || "-"}kg
+- 痛み: ${painAnalysis}
+- 睡眠時間: ${body.sleepTime ? body.sleepTime + "時間" : "不明"}
+- 相談内容: ${body.consultation || "特になし"}
+
+## 指導のポイント
+1. 競技歴と年齢を考慮し、適切なレベルのアドバイスを行うこと。（初心者に高度すぎる話をしない、ベテランに基本すぎる話をしない）
+2. S/CJの比率や、スクワットに対する効率を分析すること。
+3. 痛みがある場合はケアの方法を提案すること。
+4. Markdownで見やすく出力すること。
 `;
 
     const result = await model.generateContent(prompt);
@@ -166,12 +174,11 @@ export async function POST(request: NextRequest) {
     // スプレッドシート保存
     await saveToSpreadsheet(body, analysisText, analysisId);
 
-    // ★URL作成
-    // (Domainsで確認した正しいURLです)
+    // URL作成
     const appUrl = "https://mitamura-gemini01.vercel.app"; 
     const resultUrl = `${appUrl}/result/${analysisId}`;
 
-    // ★LINE通知
+    // LINE通知
     const lineMessage = `
 💪 ${body.name}選手、分析完了！
 
