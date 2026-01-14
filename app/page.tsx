@@ -9,8 +9,11 @@ export default function Home() {
   const [result, setResult] = useState("");
   const [lineUserId, setLineUserId] = useState("");
   const [liffError, setLiffError] = useState("");
+  
+  // ★追加：痛みレベルをリアルタイム表示するための変数
+  const [painLevel, setPainLevel] = useState(0);
 
-  // ★LIFFの初期化（アプリを開いた瞬間に実行）
+  // LIFF初期化
   useEffect(() => {
     const initLiff = async () => {
       try {
@@ -26,7 +29,6 @@ export default function Home() {
           setLineUserId(profile.userId);
           console.log("LINE User ID取得成功:", profile.userId);
         } else {
-          // ログインしていなければログイン画面へ（自動ログイン）
           liff.login();
         }
       } catch (error) {
@@ -54,7 +56,7 @@ export default function Home() {
 
     const payload: any = { 
       ...data,
-      lineUserId: lineUserId // ★ここでLINE IDも一緒に送る！
+      lineUserId: lineUserId
     };
     
     numericFields.forEach((field) => {
@@ -71,10 +73,6 @@ export default function Home() {
       const json = await response.json();
       if (json.success) {
         setResult(json.analysis);
-        // 送信成功したらLINEを閉じる（UX向上）
-        if (liff.isInClient()) {
-          // 数秒後に閉じるなどの演出も可能ですが、まずはそのまま
-        }
       } else {
         setResult("❌ エラー: " + json.error);
       }
@@ -93,9 +91,8 @@ export default function Home() {
             <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
               🏋️ AI Weightlifting Coach
             </h1>
-            <p className="text-slate-400 text-xs mt-1">Powered by Gemini Pro</p>
+            <p className="text-slate-400 text-xs mt-1">Powered by Gemini 2.5</p>
           </div>
-          {/* ログイン状態の表示 */}
           {lineUserId && <span className="text-xs text-green-400 border border-green-500/30 px-2 py-1 rounded-full">LINE連携中 ✅</span>}
         </div>
       </div>
@@ -130,7 +127,7 @@ export default function Home() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">学年・年齢</label>
-                <input name="gradeAge" type="text" placeholder="例: 大学2年生" className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition" />
+                <input name="gradeAge" type="text" placeholder="例: 大学2年生, 20歳" className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">性別</label>
@@ -219,10 +216,31 @@ export default function Home() {
                   <option value="両方とっている">両方とっている</option>
                 </select>
               </div>
+
+              {/* ★ここを修正しました！リアルタイム表示付きスライダー */}
               <div className="md:col-span-2 border-t border-slate-700 pt-4 mt-2">
-                <label className="block text-sm font-medium text-slate-300 mb-2">痛みレベル (0〜10)</label>
-                <input name="painLevel" type="range" min="0" max="10" defaultValue="0" className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-orange-500" />
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-slate-300">痛みレベル (0〜10)</label>
+                  <span className="text-2xl font-bold text-orange-400 bg-slate-900 px-3 py-1 rounded-lg border border-orange-500/50">
+                    {painLevel}
+                  </span>
+                </div>
+                <input 
+                  name="painLevel" 
+                  type="range" 
+                  min="0" 
+                  max="10" 
+                  value={painLevel} 
+                  onChange={(e) => setPainLevel(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-orange-500" 
+                />
+                <div className="flex justify-between text-xs text-slate-500 mt-2 px-1">
+                  <span>0 (絶好調)</span>
+                  <span>5 (気になる)</span>
+                  <span>10 (激痛)</span>
+                </div>
               </div>
+
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-300 mb-2">怪我・痛みの箇所</label>
                 <input name="injuryPainLocation" type="text" placeholder="例: 右肩、左膝など" className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none transition" />
