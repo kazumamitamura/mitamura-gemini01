@@ -5,13 +5,18 @@ import { marked } from "marked";
 // スプレッドシートからデータを取得する関数
 async function getAnalysisData(id: string) {
   try {
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !process.env.GOOGLE_SPREADSHEET_ID) {
+      console.error("環境変数が不足しています");
+      return null;
+    }
+
     const serviceAccountAuth = new JWT({
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      key: process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
+      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
-    const doc = new GoogleSpreadsheet(process.env.GOOGLE_SPREADSHEET_ID!, serviceAccountAuth);
+    const doc = new GoogleSpreadsheet(process.env.GOOGLE_SPREADSHEET_ID, serviceAccountAuth);
     await doc.loadInfo();
     const sheet = doc.sheetsByIndex[0];
     
@@ -38,8 +43,11 @@ async function getAnalysisData(id: string) {
   }
 }
 
-export default async function ResultPage({ params }: { params: { id: string } }) {
-  const data = await getAnalysisData(params.id);
+// ★ここが修正ポイント！（Next.js 15対応）
+// params の型を Promise<{ id: string }> に変更し、await で待ち受ける
+export default async function ResultPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params; // ここで「到着待ち」をする
+  const data = await getAnalysisData(resolvedParams.id);
 
   if (!data) {
     return (
