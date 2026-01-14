@@ -4,12 +4,13 @@ import nodemailer from "nodemailer";
 import { marked } from "marked";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
+import { v4 as uuidv4 } from 'uuid'; // ★もしエラーが出たら crypto.randomUUID() を使います
 
-// データ型定義（lineUserIdを追加）
+// (interface AnalyzeRequest の定義はそのまま)
 interface AnalyzeRequest {
   name: string;
   email: string;
-  lineUserId?: string; // ★追加：生徒のLINE ID
+  lineUserId?: string;
   gradeAge?: string;
   gender?: string;
   experience?: string;
@@ -51,16 +52,12 @@ interface AnalyzeRequest {
   consultation?: string;
 }
 
-// ★LINE送信機能（宛先を動的に変更）
+// LINE送信関数
 async function sendLineMessage(userId: string | undefined, message: string) {
   const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-  // 宛先：生徒のIDがあればそれを使う。なければ先生(環境変数)に送る。
   const targetId = userId || process.env.LINE_USER_ID;
 
-  if (!channelAccessToken || !targetId) {
-    console.log("LINE通知スキップ: Tokenまたは宛先IDがありません");
-    return;
-  }
+  if (!channelAccessToken || !targetId) return;
 
   try {
     await fetch("https://api.line.me/v2/bot/message/push", {
@@ -74,14 +71,13 @@ async function sendLineMessage(userId: string | undefined, message: string) {
         messages: [{ type: "text", text: message }],
       }),
     });
-    console.log(`LINE通知送信成功 (To: ${targetId})`);
   } catch (error) {
     console.error("LINE送信エラー:", error);
   }
 }
 
-// スプレッドシート保存
-async function saveToSpreadsheet(data: AnalyzeRequest, advice: string): Promise<string | null> {
+// ★IDも保存するように変更
+async function saveToSpreadsheet(data: AnalyzeRequest, advice: string, id: string): Promise<string | null> {
   try {
     if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !process.env.GOOGLE_SPREADSHEET_ID) {
       return "環境変数不足";
@@ -94,19 +90,12 @@ async function saveToSpreadsheet(data: AnalyzeRequest, advice: string): Promise<
     });
 
     const doc = new GoogleSpreadsheet(process.env.GOOGLE_SPREADSHEET_ID, serviceAccountAuth);
-    
-    try {
-      await doc.loadInfo();
-    } catch (e: any) {
-        if (e.message.includes("403")) return "権限エラー (403)";
-        if (e.message.includes("404")) return "IDエラー (404)";
-        return `接続エラー: ${e.message}`;
-    }
-    
+    await doc.loadInfo();
     const sheet = doc.sheetsByIndex[0];
     const now = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
 
     await sheet.addRow({
+      "ID": id, // ★IDを保存
       "日時": now,
       "氏名": data.name,
       "Email": data.email,
@@ -117,7 +106,7 @@ async function saveToSpreadsheet(data: AnalyzeRequest, advice: string): Promise<
       "痛みLv": data.painLevel,
       "痛み箇所": data.injuryPainLocation || "",
       "MBTI": data.mbti || "",
-      "AIアドバイス": advice.slice(0, 500) + "..."
+      "AIアドバイス": advice // 原文のMarkdownを保存
     });
     return null;
   } catch (error: any) {
@@ -126,14 +115,13 @@ async function saveToSpreadsheet(data: AnalyzeRequest, advice: string): Promise<
   }
 }
 
-// 分析ロジック（ヘルパー関数）
+// 痛み分析ヘルパー
 function getPainAnalysis(painLevel: number, injuryPainLocation?: string): string {
   if (painLevel === 0) return "痛みなし。";
   if (painLevel >= 7) return `⚠️ 痛みLv${painLevel}（${injuryPainLocation}）。医療機関受診を推奨。`;
   return `軽度の痛み（Lv${painLevel}）。${injuryPainLocation}の状態を確認しつつ実施。`;
 }
 
-// メイン処理
 export async function POST(request: NextRequest) {
   try {
     const body: AnalyzeRequest = await request.json();
@@ -141,6 +129,9 @@ export async function POST(request: NextRequest) {
     if (!body.name || !body.email) {
       return NextResponse.json({ error: "氏名とメールアドレスは必須です。" }, { status: 400 });
     }
+
+    // ★整理番号（ID）を発行
+    const analysisId = crypto.randomUUID();
 
     // Gemini分析
     let model;
@@ -173,10 +164,15 @@ export async function POST(request: NextRequest) {
     const response = await result.response;
     const analysisText = response.text();
 
-    // スプレッドシート保存
-    await saveToSpreadsheet(body, analysisText);
+    // スプレッドシート保存（ID付き）
+    await saveToSpreadsheet(body, analysisText, analysisId);
 
-    // ★LINE通知（生徒本人へ！）
+    // ★結果ページURLを作成
+    // ※自分のアプリのURLに書き換えてください（例: https://mitamura-gemini01.vercel.app）
+    const appUrl = "https://mitamura-gemini01.vercel.app"; 
+    const resultUrl = `${appUrl}/result/${analysisId}`;
+
+    // ★LINE通知（リンク付き！）
     const lineMessage = `
 💪 ${body.name}選手、分析完了！
 
@@ -184,15 +180,15 @@ export async function POST(request: NextRequest) {
 Snatch: ${body.Snatch || "-"}kg
 C&J: ${body.CJ || "-"}kg
 
-【三田村Gemini先生からのアドバイス】
-${analysisText.slice(0, 150)}...
+▼ 詳細なアドバイスはこちらのページで確認できます！
+${resultUrl}
 
-(全文はメールまたは画面で確認してくれ！)
+(三田村Gemini先生より)
 `;
-    // ここで生徒のID（body.lineUserId）に送る
+    
     await sendLineMessage(body.lineUserId, lineMessage);
 
-    // メール送信（バックアップとして維持）
+    // メール送信（バックアップ）
     if (process.env.SENDER_EMAIL && process.env.SENDER_PASSWORD) {
       const transporter = nodemailer.createTransport({
         service: "gmail",
@@ -203,7 +199,11 @@ ${analysisText.slice(0, 150)}...
         from: `"三田村Gemini先生" <${process.env.SENDER_EMAIL}>`,
         to: body.email,
         subject: `【分析結果】${body.name}選手へのフィードバック`,
-        html: `<div style="font-family:sans-serif;">${parsedHtml}</div>`,
+        html: `<div style="font-family:sans-serif;">
+          <p>詳細な結果は以下のリンクからも確認できます：<br><a href="${resultUrl}">${resultUrl}</a></p>
+          <hr>
+          ${parsedHtml}
+        </div>`,
       });
     }
 
