@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     // Gemini分析
     let model;
     try {
-      model = getGeminiModel("gemini-pro");
+      model = getGeminiModel("gemini-2.5-flash");
     } catch (e) {
       return NextResponse.json({ error: "Gemini初期化エラー" }, { status: 500 });
     }
