@@ -4,9 +4,7 @@ import nodemailer from "nodemailer";
 import { marked } from "marked";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
-import { v4 as uuidv4 } from 'uuid'; // ★もしエラーが出たら crypto.randomUUID() を使います
 
-// (interface AnalyzeRequest の定義はそのまま)
 interface AnalyzeRequest {
   name: string;
   email: string;
@@ -76,7 +74,7 @@ async function sendLineMessage(userId: string | undefined, message: string) {
   }
 }
 
-// ★IDも保存するように変更
+// スプレッドシート保存
 async function saveToSpreadsheet(data: AnalyzeRequest, advice: string, id: string): Promise<string | null> {
   try {
     if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !process.env.GOOGLE_SPREADSHEET_ID) {
@@ -95,7 +93,7 @@ async function saveToSpreadsheet(data: AnalyzeRequest, advice: string, id: strin
     const now = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
 
     await sheet.addRow({
-      "ID": id, // ★IDを保存
+      "ID": id,
       "日時": now,
       "氏名": data.name,
       "Email": data.email,
@@ -106,7 +104,7 @@ async function saveToSpreadsheet(data: AnalyzeRequest, advice: string, id: strin
       "痛みLv": data.painLevel,
       "痛み箇所": data.injuryPainLocation || "",
       "MBTI": data.mbti || "",
-      "AIアドバイス": advice // 原文のMarkdownを保存
+      "AIアドバイス": advice
     });
     return null;
   } catch (error: any) {
@@ -115,7 +113,6 @@ async function saveToSpreadsheet(data: AnalyzeRequest, advice: string, id: strin
   }
 }
 
-// 痛み分析ヘルパー
 function getPainAnalysis(painLevel: number, injuryPainLocation?: string): string {
   if (painLevel === 0) return "痛みなし。";
   if (painLevel >= 7) return `⚠️ 痛みLv${painLevel}（${injuryPainLocation}）。医療機関受診を推奨。`;
@@ -130,12 +127,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "氏名とメールアドレスは必須です。" }, { status: 400 });
     }
 
-    // ★整理番号（ID）を発行
-    const analysisId = crypto.randomUUID();
+    // ★ID作成：インストール不要の標準機能を使用
+    // (日付 + ランダムな文字列でユニークなIDを作ります)
+    const analysisId = Date.now().toString(36) + Math.random().toString(36).substring(2);
 
     // Gemini分析
     let model;
     try {
+      // ★モデルを gemini-2.5-flash に固定
       model = getGeminiModel("gemini-2.5-flash");
     } catch (e) {
       return NextResponse.json({ error: "Gemini初期化エラー" }, { status: 500 });
@@ -164,15 +163,15 @@ export async function POST(request: NextRequest) {
     const response = await result.response;
     const analysisText = response.text();
 
-    // スプレッドシート保存（ID付き）
+    // スプレッドシート保存
     await saveToSpreadsheet(body, analysisText, analysisId);
 
-    // ★結果ページURLを作成
-    // ※自分のアプリのURLに書き換えてください（例: https://mitamura-gemini01.vercel.app）
+    // ★URL作成
+    // (Domainsで確認した正しいURLです)
     const appUrl = "https://mitamura-gemini01.vercel.app"; 
     const resultUrl = `${appUrl}/result/${analysisId}`;
 
-    // ★LINE通知（リンク付き！）
+    // ★LINE通知
     const lineMessage = `
 💪 ${body.name}選手、分析完了！
 
@@ -188,7 +187,7 @@ ${resultUrl}
     
     await sendLineMessage(body.lineUserId, lineMessage);
 
-    // メール送信（バックアップ）
+    // メール送信
     if (process.env.SENDER_EMAIL && process.env.SENDER_PASSWORD) {
       const transporter = nodemailer.createTransport({
         service: "gmail",
